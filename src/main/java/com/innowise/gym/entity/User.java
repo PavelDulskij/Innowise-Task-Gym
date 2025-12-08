@@ -1,5 +1,6 @@
 package com.innowise.gym.entity;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 public class User {

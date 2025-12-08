@@ -10,7 +10,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 @WebServlet(name = "dispatcher", value = "/dispatcher-servlet")
-public class DispatcherServlet extends HttpServlet {
+public class Controller extends HttpServlet {
+    private static final String COMMAND = "command";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException{
@@ -25,7 +26,7 @@ public class DispatcherServlet extends HttpServlet {
     }
 
     private void processRequest(HttpServletRequest request, HttpServletResponse response) throws IOException{
-        String commandStr = request.getParameter("command");
+        String commandStr = request.getParameter(COMMAND);
 
         Command command = CommandFactory.defineCommand(commandStr);
         String page = command.execute(request);

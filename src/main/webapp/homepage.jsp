@@ -14,13 +14,10 @@
 </head>
 <body>
 
-<c:if test="${not empty sessionScope.user}">
-    <h1>Hello, ${sessionScope.user.login}!</h1>
-    <h3>Your password is ${sessionScope.user.password}</h3>
-    </c:if>
-    <form action="dispatcher-servlet" method="post">
-        <input type="hidden" name="command", value="log_out">
-        <input type="submit" value="Log out">
-    </form>
+<h1>Hello, ${login}! Your password is ${password}</h1>
+<form action="dispatcher-servlet" method="post">
+    <input type="hidden" name="command" , value="log_out">
+    <input type="submit" value="Log out">
+</form>
 </body>
 </html>
