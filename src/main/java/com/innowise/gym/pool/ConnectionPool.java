@@ -1,5 +1,8 @@
 package com.innowise.gym.pool;
 
+import com.innowise.gym.manager.DBParameter;
+import com.innowise.gym.manager.PropertyManager;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -11,68 +14,74 @@ import java.util.concurrent.BlockingQueue;
 public enum ConnectionPool {
     INSTANCE;
 
-    private static final String DRIVER_LOAD = "com.mysql.cj.jdbc.Driver";
-    private static final String URL = "jdbc:mysql://localhost:3306/users";
-    private static final String USER = "root";
-    private static final  String PASSWORD = "root";
-    private BlockingQueue<Connection> freeConnections;
-    private Queue<Connection> givenAwayConnections;
+    private final String DRIVER_LOAD = PropertyManager.get(DBParameter.DB_DRIVER);
+    private final String URL = PropertyManager.get(DBParameter.DB_URL);
+    private final String USER = PropertyManager.get(DBParameter.DB_USER);
+    private final String PASSWORD = PropertyManager.get(DBParameter.DB_PASSWORD);
+    private final int POOL_SIZE = Integer.parseInt(PropertyManager.get(DBParameter.DB_POOL_SIZE));
 
-
-    private static final int DEFAULT_POOL_SIZE = 10;
+    private final BlockingQueue<ProxyConnection> freeConnections;
+    private final Queue<ProxyConnection> usedConnections;
 
     ConnectionPool() {
         try {
             Class.forName(DRIVER_LOAD);
         } catch (ClassNotFoundException e) {
-            throw new ExceptionInInitializerError(e);
+            throw new ExceptionInInitializerError("Cannot load DB driver");
         }
-        freeConnections = new ArrayBlockingQueue<>(DEFAULT_POOL_SIZE);
-        givenAwayConnections = new ArrayDeque<>();
 
-        for (int i = 0; i < DEFAULT_POOL_SIZE; i++) {
-            Connection realConnection = null;
+        freeConnections = new ArrayBlockingQueue<>(POOL_SIZE);
+        usedConnections = new ArrayDeque<>();
+
+        for (int i = 0; i < POOL_SIZE; i++) {
             try {
-                realConnection = DriverManager.getConnection(URL, USER, PASSWORD);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
+                Connection realConnection =
+                        DriverManager.getConnection(URL, USER, PASSWORD);
 
-            freeConnections.add(realConnection);
+                ProxyConnection proxyConnection =
+                        new ProxyConnection(realConnection);
+
+                freeConnections.add(proxyConnection);
+
+            } catch (SQLException e) {
+                throw new ExceptionInInitializerError("Cannot create DB connection");
+            }
         }
     }
+
     public Connection getConnection() {
-        Connection connection;
         try {
-            connection = freeConnections.take();
-            givenAwayConnections.offer(connection);
+            ProxyConnection connection = freeConnections.take();
+            usedConnections.offer(connection);
+            return connection; // возвращаем как Connection
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for DB connection", e);
         }
-        return connection;
     }
-    public void releaseConnection(Connection connection) {
-        givenAwayConnections.remove(connection);
+
+    void releaseConnection(ProxyConnection connection) {
+        usedConnections.remove(connection);
         freeConnections.offer(connection);
     }
+
     public void destroyPool() {
-        for (int i = 0; i < DEFAULT_POOL_SIZE; i++) {
+        for (int i = 0; i < POOL_SIZE; i++) {
             try {
-                freeConnections.take().close();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+                ProxyConnection connection = freeConnections.take();
+                connection.reallyClose();
             } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+                Thread.currentThread().interrupt();
             }
         }
-        deregisterDriver();
+        deregisterDrivers();
     }
-    public void deregisterDriver() {
+
+    private void deregisterDrivers() {
         DriverManager.getDrivers().asIterator().forEachRemaining(driver -> {
             try {
                 DriverManager.deregisterDriver(driver);
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+            } catch (SQLException ignored) {
             }
         });
     }

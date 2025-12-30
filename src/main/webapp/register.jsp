@@ -21,6 +21,9 @@
         Confirm password: <br/>
         <input type="password" name="confirmPass"> <br/>
         <br />
+        Email: <br/>
+        <input type="email" name="email"> <br/>
+        <br />
         <input type="submit" value="Submit">
     </form>
 <p>

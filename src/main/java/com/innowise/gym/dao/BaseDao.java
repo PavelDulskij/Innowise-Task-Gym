@@ -1,9 +1,15 @@
 package com.innowise.gym.dao;
 
-import java.io.Serializable;
+import com.innowise.gym.entity.AbstractEntity;
+import com.innowise.gym.exception.DaoException;
 
-public interface BaseDao <T extends Serializable & Cloneable> {
-    boolean save();
-    boolean delete();
-    boolean update();
+import java.io.Serializable;
+import java.util.List;
+
+public interface BaseDao <T extends AbstractEntity> {
+    boolean insert(T t) throws DaoException;
+    boolean delete(T t) throws DaoException;
+    T update(T t) throws DaoException;
+    List<T> findAll() throws DaoException;
+
 }

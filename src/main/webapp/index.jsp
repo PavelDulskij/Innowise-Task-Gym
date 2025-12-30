@@ -19,6 +19,6 @@
     <input type="submit" value="Submit">
 </form>
 <br>
-    Don't have an account? <a href="registration.jsp">Register</a>
+    Don't have an account? <a href="register.jsp">Register</a>
 </body>
 </html>

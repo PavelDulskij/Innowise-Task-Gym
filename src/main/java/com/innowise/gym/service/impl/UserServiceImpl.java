@@ -3,28 +3,64 @@ package com.innowise.gym.service.impl;
 import com.innowise.gym.dao.UserDao;
 import com.innowise.gym.dao.impl.UserDaoImpl;
 import com.innowise.gym.entity.User;
-import com.innowise.gym.service.UserService;
+import com.innowise.gym.exception.DaoException;
+import com.innowise.gym.exception.ServiceException;
+import com.innowise.gym.util.PasswordHasher;
 
 import java.util.Optional;
 
-public class UserServiceImpl implements UserService {
-    private final UserDao userDao = new UserDaoImpl();
+public class UserServiceImpl {
 
-    @Override
-    public Optional<User> login(String login, String password) {
-        Optional<User> user = userDao.findUserByLogin(login);
-        if (user.isPresent() && user.get().getPassword().equals(password)) {
-            return user;
-        }
-        return Optional.empty();
+    private final UserDao userDao;
+
+    public UserServiceImpl() {
+        this.userDao = new UserDaoImpl();
     }
 
-    @Override
-    public boolean register(User user) {
-        Optional<User> userOptional = userDao.findUserByLogin(user.getLogin());
-        if (userOptional.isEmpty() ) {
-            return true;
+    public void register(String login, String password, String email) throws ServiceException {
+
+        if (login == null || login.isBlank()
+                || password == null || password.isBlank()
+                || email == null || email.isBlank()) {
+            throw new ServiceException("All fields are required");
         }
-        return false;
+
+        try {
+            if (userDao.findUserByLogin(login).isPresent()) {
+                throw new ServiceException("Login already exists");
+            }
+            String hashedPassword = PasswordHasher.hash(password);
+
+            User user = new User();
+            user.setLogin(login);
+            user.setPassword(hashedPassword);
+            user.setEmail(email);
+            user.setRole("USER");
+
+            userDao.insert(user);
+
+        } catch (DaoException e) {
+            throw new ServiceException("Error during registration", e);
+        }
+    }
+
+    public Optional<User> login(String login, String password) throws ServiceException {
+
+        if (login == null || password == null) {
+            return Optional.empty();
+        }
+        try {
+            Optional<User> userOpt = userDao.findUserByLogin(login);
+            if (userOpt.isEmpty()) {
+                return Optional.empty();
+            }
+            User user = userOpt.get();
+            if (PasswordHasher.check(password, user.getPassword())) {
+                return Optional.of(user);
+            }
+            return Optional.empty();
+        } catch (DaoException e) {
+            throw new ServiceException("Error during login", e);
+        }
     }
 }

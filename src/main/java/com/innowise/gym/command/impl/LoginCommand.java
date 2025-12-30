@@ -2,30 +2,38 @@ package com.innowise.gym.command.impl;
 
 import com.innowise.gym.command.Command;
 import com.innowise.gym.entity.User;
+import com.innowise.gym.exception.ServiceException;
+import com.innowise.gym.service.impl.UserServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
+
+import java.util.Optional;
 
 public class LoginCommand implements Command {
-    private static final String LOGIN = "login";
-    private static final String PASSWORD = "password";
-    private static final String USER = "user";
+
+    private final UserServiceImpl userService = new UserServiceImpl();
+
     @Override
     public String execute(HttpServletRequest request) {
-        HttpSession session = request.getSession();
 
-        String login = request.getParameter(LOGIN);
-        String password = request.getParameter(PASSWORD);
+        String login = request.getParameter("login");
+        String password = request.getParameter("password");
 
-        User user = (User) session.getAttribute(USER);
-        if (user == null) {
-            user = new User();
-            user.setPassword(password);
-            user.setLogin(login);
-            session.setAttribute(USER, user);
+        try {
+            Optional<User> userOpt = userService.login(login, password);
+
+            if (userOpt.isPresent()) {
+                request.getSession().setAttribute("user", userOpt.get());
+                return "redirect:/homepage.jsp";
+            }
+
+            request.setAttribute("error", "Invalid login or password");
+            return "/index.jsp";
+
+        } catch (ServiceException e) {
+            request.setAttribute("error", "Internal error");
+            return "/index.jsp";
         }
-        request.setAttribute(LOGIN, login);
-        request.setAttribute(PASSWORD, password);
-
-        return "redirect:/homepage.jsp";
     }
 }
+
+
